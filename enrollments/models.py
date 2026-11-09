@@ -16,5 +16,8 @@ class Enrollment(models.Model):
             )
         ]
 
+        verbose_name = "课程记录"
+        verbose_name_plural = "课程记录"
+
     def __str__(self) -> str:
         return f"{self.student} -> {self.course}"

@@ -9,5 +9,9 @@ class Student(models.Model):
     student_no = models.CharField(max_length = 50, unique = True)
     age = models.PositiveIntegerField(validators = [MinValueValidator(1)])
 
+    class Meta:
+        verbose_name = "学生"
+        verbose_name_plural = "学生"
+        
     def __str__(self) -> str:
         return f"{self.name}"
