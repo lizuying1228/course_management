@@ -6,7 +6,7 @@ from courses.models import Course
 class EnrollmentSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
     enrolled_at = serializers.DateTimeField(read_only=True)
-    student = serializers.PrimaryKeyRelatedField(read_only=True)
+    student: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(read_only=True)
 
     #student只读没实现，后续从登陆用户获取学生信息
     #course从客户端接收课程

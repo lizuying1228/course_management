@@ -69,4 +69,3 @@ class CourseSerializerTest(TestCase):
         serializer = CourseSerializer(data = data)
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertNotIn("teacher", serializer.validated_data)
-        

@@ -46,5 +46,3 @@ class TeacherSerializerTest(TestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("name", serializer.errors)
-
-    

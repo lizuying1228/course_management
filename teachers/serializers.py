@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from teachers.models import Teacher
+from django.contrib.auth.models import User
 
 class TeacherSerializer(serializers.ModelSerializer):
 
@@ -13,5 +14,6 @@ class TeacherSerializer(serializers.ModelSerializer):
         if not value.strip(): 
             raise serializers.ValidationError("姓名不能为空")
         return value
+
 
     

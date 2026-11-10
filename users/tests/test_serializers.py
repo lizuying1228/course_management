@@ -47,4 +47,3 @@ class UserSerializerTest(TestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         update_user = serializer.save()
         self.assertTrue(update_user.check_password("alice123456"))
-

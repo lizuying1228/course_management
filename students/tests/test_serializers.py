@@ -85,6 +85,3 @@ class StudentSerializerTest(TestCase):
         serializer = StudentSerializer(instance=self.student, data = data)
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
-
-
-    
