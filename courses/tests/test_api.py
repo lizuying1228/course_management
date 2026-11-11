@@ -4,6 +4,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from courses.models import Course
 from teachers.models import Teacher
+from rest_framework.authtoken.models import Token
 
 class CourseAPItest(APITestCase):
     def setUp(self):
@@ -11,6 +12,9 @@ class CourseAPItest(APITestCase):
             username = "alice",
             password = "password123"
         )
+        
+        token = Token.objects.create(user = self.user)
+        self.client.credentials(HTTP_AUTHORIZATION = f"Token {token}")
 
         self.teacher = Teacher.objects.create(
             user = self.user,

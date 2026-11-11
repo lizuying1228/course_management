@@ -3,6 +3,8 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from students.models import Student
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
 
 class StudentAPItest(APITestCase):
     def setUp(self):
@@ -10,6 +12,10 @@ class StudentAPItest(APITestCase):
                 username="student1", 
                 password="password123"
             )
+
+        token = Token.objects.create(user = self.user)
+
+        self.client.credentials(HTTP_AUTHORIZATION = f"Token {token}")
         
         self.student = Student.objects.create(
             user = self.user,
@@ -44,8 +50,10 @@ class StudentAPItest(APITestCase):
             password = "password123"
         )
 
+        token = Token.objects.create(user = user)
+        self.client.credentials(HTTP_AUTHORIZATION = f"Token {token}")
+
         data = {
-            "user_id": user.id,
             "name": "Alice",
             "student_no": "S002",
             "age": 19

@@ -113,23 +113,10 @@ from rest_framework.exceptions import ValidationError
 class StudentModelView(ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [AllowAny]
 
     def perform_create(self, serializer):
-        data = self.request.data
-        if not isinstance(data, dict):
-            raise ValidationError({"request": "请求必须是JSON格式"})
-
-        user_id = data.get("user_id")
-
-        if not user_id:
-            raise ValidationError({"user_id": "必须提供user_id"})
-
-        if int(user_id) <= 0:
-            raise ValidationError({"user_id": "user_id必须大于 0"})
-
-        user = get_object_or_404(User, pk = int(user_id))
-
+        user = self.request.user
+        
         student = Student.objects.filter(user = user)
         if student:
             raise ValidationError({"user_id": "该用户已被绑定"})

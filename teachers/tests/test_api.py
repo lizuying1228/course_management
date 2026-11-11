@@ -4,6 +4,7 @@ from teachers.serializers import TeacherSerializer
 from teachers.models import Teacher
 from django.urls import reverse
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 
 class TeacherAPItest(APITestCase):
     def setUp(self):
@@ -11,6 +12,9 @@ class TeacherAPItest(APITestCase):
             username = "teacher1",
             password = "password123"
         )
+
+        token = Token.objects.create(user = self.user)
+        self.client.credentials(HTTP_AUTHORIZATION = f"Token {token}")
 
         self.teacher = Teacher.objects.create(
             user = self.user,
@@ -38,6 +42,9 @@ class TeacherAPItest(APITestCase):
             username = "teacher2",
             password = "password123"
         )
+
+        token = Token.objects.create(user = user)
+        self.client.credentials(HTTP_AUTHORIZATION = f"Token {token}")
 
         data = {
             "user_id": user.id,

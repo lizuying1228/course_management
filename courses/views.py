@@ -56,7 +56,6 @@ from rest_framework.decorators import action
 class CourseModelView(ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [AllowAny]
 
     def perform_create(self, serializer):
         data = self.request.data
