@@ -119,3 +119,16 @@ class StudentAPItest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         exist = Student.objects.filter(pk = self.student.pk).exists()
         self.assertFalse(exist)
+
+    def test_student_no_user_id(self):
+        data = {
+            "name": "Ammy",
+            "student_no": "S006",
+            "age": 18
+        }
+
+        url = reverse("student-list")
+        response = self.client.post(url, data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        

@@ -1,7 +1,14 @@
 from django.urls import path
-from teachers.views import TeacherListView, TeacherDetailView
+from rest_framework.routers import DefaultRouter
+from teachers.views import TeacherModelView
 
-urlpatterns = [
-    path('', TeacherListView.as_view(), name = "teacher-list"),
-    path('<int:pk>/', TeacherDetailView.as_view(), name = "teacher-detail")
-]
+router = DefaultRouter()
+
+router.register(
+    r"teachers",
+    TeacherModelView,
+    basename = "teacher"
+)
+
+urlpatterns = router.urls
+

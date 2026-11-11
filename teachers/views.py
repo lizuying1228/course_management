@@ -11,53 +11,82 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 
 # Create your views here.
-class TeacherListView(ListModelMixin, CreateModelMixin, GenericAPIView):
-    queryset = Teacher.objects.all()
-    serializer_class = TeacherSerializer
-    permission_classes = [AllowAny]
+# class TeacherListView(ListModelMixin, CreateModelMixin, GenericAPIView):
+#     queryset = Teacher.objects.all()
+#     serializer_class = TeacherSerializer
+#     permission_classes = [AllowAny]
 
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+#     def get(self, request, *args, **kwargs):
+#         return self.list(request, *args, **kwargs)
 
-    def post(self, request):
-        if not isinstance(request.data, dict):
-            return Response(
-                {"error": "请求数据必须是 JSON 对象"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+#     def post(self, request):
+#         if not isinstance(request.data, dict):
+#             return Response(
+#                 {"error": "请求数据必须是 JSON 对象"},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
 
-        user_id = request.data.get("user_id")
+#         user_id = request.data.get("user_id")
 
-        if not user_id:
-            return Response({"Error": "需要提供user_id"}, status=status.HTTP_400_BAD_REQUEST)
+#         if not user_id:
+#             return Response({"Error": "需要提供user_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = get_object_or_404(User, pk=user_id)
+#         user = get_object_or_404(User, pk=user_id)
 
-        if Teacher.objects.filter(user = user).exists():
-            return Response({"error": "该用户已经关联学生资料"}, status=status.HTTP_400_BAD_REQUEST)
+#         if Teacher.objects.filter(user = user).exists():
+#             return Response({"error": "该用户已经关联学生资料"}, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = TeacherSerializer(data = request.data)
+#         serializer = TeacherSerializer(data = request.data)
 
-        if serializer.is_valid():
-            teacher = serializer.save(user = user)
-            return Response(TeacherSerializer(teacher).data, status = status.HTTP_201_CREATED)
-        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
+#         if serializer.is_valid():
+#             teacher = serializer.save(user = user)
+#             return Response(TeacherSerializer(teacher).data, status = status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 
-class TeacherDetailView(RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin, GenericAPIView):
+# class TeacherDetailView(RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin, GenericAPIView):
+    # queryset = Teacher.objects.all()
+    # serializer_class = TeacherSerializer
+    # permission_classes = [AllowAny]
+
+    # def get(self, request, *args, **kwargs):
+    #     return self.retrieve(request, *args, **kwargs)
+
+    # def put(self, request, *args, **kwargs):
+    #     return self.update(request, *args, **kwargs)
+
+    # def patch(self, request, *args, **kwargs):
+    #     return self.partial_update(request, *args, **kwargs)
+
+    # def delete(self, request, *args, **kwargs):
+    #     return self.destroy(request, *args, **kwargs)
+
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.exceptions import ValidationError
+
+class TeacherModelView(ModelViewSet):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
     permission_classes = [AllowAny]
 
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
+    def perform_create(self, serializer):
+        data = self.request.data
+        if not isinstance(data, dict):
+            raise ValidationError({"Error": "请求必须是JSON格式"})
 
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+        user_id = data.get("user_id")
 
-    def patch(self, request, *args, **kwargs):
-        return self.partial_update(request, *args, **kwargs)
+        if not user_id or int(user_id) <= 0:
+            raise ValidationError({"user_id": "user_id必须存在 / 类型错误"})
 
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+        user = get_object_or_404(User, pk = int(user_id))
+
+        teacher = Teacher.objects.filter(user = user)
+
+        if teacher:
+            raise ValidationError({"Error": "该用户已被绑定"})
+
+        serializer.save(user = user)
+
+
         

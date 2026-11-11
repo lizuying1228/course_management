@@ -1,7 +1,12 @@
 from django.urls import path
-from courses.views import CourseListView, CourseDetailView
+from rest_framework.routers import DefaultRouter
+from courses.views import CourseModelView
 
-urlpatterns = [
-    path('', CourseListView.as_view(), name = "course-list"),
-    path('<int:pk>/', CourseDetailView.as_view(), name = "course-detail")
-]
+router = DefaultRouter()
+router.register(
+    r"courses",
+    CourseModelView,
+    basename = "course"
+)
+
+urlpatterns = router.urls
