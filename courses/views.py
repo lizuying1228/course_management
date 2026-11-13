@@ -52,27 +52,46 @@ from django.db.models.deletion import ProtectedError
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
+from users.permissions import Coursepermission, is_student, is_teacher, is_admin
+from courses.filters import CourseFilter
+from courses.pagination import CoursePagination
 
 class CourseModelView(ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
+    permission_classes = [Coursepermission]
+    filterset_class = CourseFilter
+    search_fields = ["title", "description", "teacher__name"]
+    ordering_fields = ["title", "capacity", "created_at", "updated_at"]
+    ordering = ["id"]
+    pagination_class = CoursePagination
 
     def perform_create(self, serializer):
-        data = self.request.data
-        if not isinstance(data, dict):
-            raise ValidationError({"request": "请求必须是JSON格式"})
+        user = self.request.user
 
-        teacher_id = data.get("teacher_id")
+        if is_teacher(user):
+            serializer.save(teacher = user.teacher)
+            return 
 
-        if not teacher_id or int(teacher_id) <= 0:
-            raise ValidationError({"Error": "teacher_id必须存在，必须为正整数"})
+        if is_admin(user):
+            data = self.request.data
+            if not isinstance(data, dict):
+                raise ValidationError({"request": "请求必须是JSON格式"})
 
-        teacher = get_object_or_404(Teacher, pk = int(teacher_id))
+            teacher_id = data.get("teacher_id")
 
-        if not teacher:
-            raise ValidationError({"Error": "该教师不存在"})
+            if not teacher_id or int(teacher_id) <= 0:
+                raise ValidationError({"Error": "teacher_id必须存在，必须为正整数"})
 
-        serializer.save(teacher = teacher)
+            teacher = get_object_or_404(Teacher, pk = int(teacher_id))
+
+            if not teacher:
+                raise ValidationError({"Error": "该教师不存在"})
+
+            serializer.save(teacher = teacher)
+            return 
+            
+        raise ValidationError("没有创建课程的权限")
 
     def perform_destory(self, instance):
         try:
@@ -81,10 +100,31 @@ class CourseModelView(ModelViewSet):
         except ProtectedError:
             raise ValidationError({"Error": "该课程有学生，不能删除"})
 
-    @action(detail = True, methods=["GET"])
+    @action(detail = False, methods=["GET"])
     def active(self, request):
         courses = Course.objects.filter(is_active = True)
+        courses = self.filter_queryset(courses)
+        page = self.paginate_queryset(courses)
+
+        if page is not None:
+            # 3A. 如果开启了分页，只序列化“当前页”的数据
+            serializer = self.get_serializer(page, many=True)
+            # 4A. 使用 get_paginated_response 包装成标准的分页结构（带 results、count 等）
+            return self.get_paginated_response(serializer.data)
+        
         serializer = CourseSerializer(courses, many=True)
-        return Response(serializer, status = status.HTTP_200_OK)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+
+    def get_queryset(self):
+        user = self.request.user
+        if is_admin(user) or is_teacher(user):
+            return Course.objects.select_related("teacher", "teacher__user").order_by("id")
+
+        if is_student(user):
+            return Course.objects.filter(is_active = True).select_related("teacher").order_by("id")
+
+        return Course.objects.none()
+
+    
 
         

@@ -9,23 +9,36 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-v8%tla2l_1^%!c_0ssgf9b++9x$qjv8%lk90!+m(9gmhvciuf2'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-development-only",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 
-ALLOWED_HOSTS: list = []
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    "127.0.0.1,localhost",
+).split(",")
 
 
 # Application definition
@@ -137,5 +150,48 @@ MAILERS = {
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.TokenAuthentication",],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"]
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 5,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "120/minute",
+        "enroll": "10/minute",   # 自定义名字
+        "login": "5/minute",
+    },
+    "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema"
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "课程管理系统 API",
+    "DESCRIPTION": """
+课程管理系统后端 API 文档。
+
+主要功能：
+1. 用户注册与 Token 认证
+2. 学生信息管理
+3. 教师信息管理
+4. 课程管理
+5. 学生选课与退课
+6. 角色权限控制
+7. 课程过滤、搜索、排序和分页
+""",
+    "VERSION": "1.0.0",
+
+    # 不在 Swagger 中额外展示 Schema 接口
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    # 将请求和响应 Schema 分开
+    "COMPONENT_SPLIT_REQUEST": True,
 }

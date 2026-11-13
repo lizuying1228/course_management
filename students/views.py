@@ -109,25 +109,58 @@ from django.contrib.auth.models import User
 
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
+from users.permissions import Studentpermission, is_admin, is_teacher, is_student
+from students.pagination import StudentPagination
             
 class StudentModelView(ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+    permission_classes = [Studentpermission]
+    pagination_class = StudentPagination
 
     def perform_create(self, serializer):
         user = self.request.user
+
+        if not is_admin(user):
+            raise ValidationError("非管理员不可以创建学生资料")
+
+        data = self.request.data
+        if not isinstance(data, dict):
+            raise ValidationError({"Error": "请求数据必须是JSON对象"})
+
+        user_id = data.get("user_id")
+
+        if user_id is None:
+            raise ValidationError({
+                "user_id": "必须提供 user_id"
+            })
+
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            raise ValidationError({
+                "user_id": "user_id 必须是有效整数"
+            })
+
+        target_user = get_object_or_404(
+            User,
+            pk=user_id
+        )
         
-        student = Student.objects.filter(user = user)
+        student = Student.objects.filter(user = target_user)
         if student:
             raise ValidationError({"user_id": "该用户已被绑定"})
 
         serializer.save(user = user)
 
     def get_queryset(self):
-        if self.action == "list":
-            return Student.objects.select_related("user")
+        user = self.request.user
 
-        if self.action == "retrieve":
-            return Student.objects.select_related("user")
+        if is_admin(user) or is_teacher(user):
+            return Student.objects.select_related("user").order_by("id")
 
-        return Student.objects.all()
+        if is_student(user):
+            return Student.objects.filter(user = user).select_related("user")
+
+        return Student.objects.none()
+

@@ -1,6 +1,7 @@
 
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.core.cache import cache
 
 from rest_framework.test import APITestCase
 from rest_framework import status
@@ -219,6 +220,8 @@ class AuthenticationTest(APITestCase):
         )
 
     def test_wrong_password(self):
+        cache.clear()
+        
         response = self.client.post(
             self.login_url,
             {
