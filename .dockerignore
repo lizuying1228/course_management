@@ -1,0 +1,12 @@
+.git/
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.env
+.env.*
+!.env.example
+db.sqlite3
+staticfiles/
+frontend/node_modules/
+frontend/dist/

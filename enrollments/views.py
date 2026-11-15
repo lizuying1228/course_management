@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from django.db import transaction, IntegrityError
 from enrollments.filters import EnrolllmentFilter
 from enrollments.pagination import EnrollmentPagination
+from rest_framework.throttling import ScopedRateThrottle
 
 # Create your views here.
 class EnrollmentView(
@@ -27,7 +28,18 @@ class EnrollmentView(
     ordering_fields = ["enrolled_at", "student__name", "course__title"]
     ordering = ["-enrolled_at"]
     pagination_class = EnrollmentPagination
-    throttle_scope = "enroll"
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+
+        # 只有创建选课记录时，才使用 enroll 限流
+        if self.action != "create":
+            throttles = [
+                throttle for throttle in throttles
+                if not isinstance(throttle, ScopedRateThrottle)
+            ]
+
+        return throttles
 
     def get_queryset(self):
         user = self.request.user

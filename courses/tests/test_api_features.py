@@ -4,6 +4,8 @@ from rest_framework.test import APITestCase, APIClient
 
 from teachers.models import Teacher
 from courses.models import Course
+from students.models import Student
+from enrollments.models import Enrollment
 
 
 class CourseAPIFeaturesTest(APITestCase):
@@ -240,3 +242,21 @@ class CourseAPIFeaturesTest(APITestCase):
         titles = [item["title"] for item in results]
 
         self.assertEqual(titles, sorted(titles))
+
+    def test_course_has_generated_code_and_enrollment_count(self):
+        response = self.client.get("/api/courses/")
+        results = self.get_results(response)
+        self.assertIn("code", results[0])
+        self.assertTrue(results[0]["code"].startswith("CRS"))
+        student_user = User.objects.create_user(
+            username="course_count_student", password="password123"
+        )
+        student = Student.objects.create(
+            user=student_user, name="Count Student", student_no="COUNT001", age=20
+        )
+        Enrollment.objects.create(student=student, course=self.courses[0])
+
+        response = self.client.get("/api/courses/")
+        results = self.get_results(response)
+        first_course = next(item for item in results if item["id"] == self.courses[0].id)
+        self.assertEqual(first_course["enrollment_count"], 1)

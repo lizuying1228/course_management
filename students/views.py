@@ -9,6 +9,12 @@ from rest_framework.permissions import AllowAny
 
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
+from django.db import transaction
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.authtoken.models import Token
+from users.permissions import Studentpermission, is_admin, is_teacher, is_student
+from students.pagination import StudentPagination
 # Create your views here.
 # class StudentListAPIView(APIView):
 #     permission_classes = [AllowAny]
@@ -117,41 +123,48 @@ class StudentModelView(ModelViewSet):
     serializer_class = StudentSerializer
     permission_classes = [Studentpermission]
     pagination_class = StudentPagination
+    search_fields = ["name", "student_no", "user__username", "=id", "=user__id"]
+    ordering_fields = ["id", "name", "student_no", "age"]
+    ordering = ["id"]
+    filterset_fields = ["id", "student_no", "user__is_active"]
 
     def perform_create(self, serializer):
-        user = self.request.user
-
-        if not is_admin(user):
+        if not is_admin(self.request.user):
             raise ValidationError("非管理员不可以创建学生资料")
 
         data = self.request.data
         if not isinstance(data, dict):
             raise ValidationError({"Error": "请求数据必须是JSON对象"})
 
-        user_id = data.get("user_id")
+        with transaction.atomic():
+            user_id = data.get("user_id")
+            if user_id is not None:
+                try:
+                    target_user = User.objects.get(pk=int(user_id))
+                except (TypeError, ValueError):
+                    raise ValidationError({"user_id": "user_id 必须是有效整数"})
+                except User.DoesNotExist:
+                    raise ValidationError({"user_id": "对应用户不存在"})
+                if hasattr(target_user, "student"):
+                    raise ValidationError({"user_id": "该用户已被绑定学生资料"})
+                if hasattr(target_user, "teacher"):
+                    raise ValidationError({"user_id": "该用户已是教师，不能绑定为学生"})
+            else:
+                username = data.get("username")
+                password = data.get("password")
+                if not username:
+                    raise ValidationError({"username": "创建学生账号时必须提供用户名"})
+                if not password or len(str(password)) < 8:
+                    raise ValidationError({"password": "密码至少需要 8 位"})
+                if User.objects.filter(username=username).exists():
+                    raise ValidationError({"username": "该用户名已被注册"})
+                target_user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    email=data.get("email", ""),
+                )
 
-        if user_id is None:
-            raise ValidationError({
-                "user_id": "必须提供 user_id"
-            })
-
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            raise ValidationError({
-                "user_id": "user_id 必须是有效整数"
-            })
-
-        target_user = get_object_or_404(
-            User,
-            pk=user_id
-        )
-        
-        student = Student.objects.filter(user = target_user)
-        if student:
-            raise ValidationError({"user_id": "该用户已被绑定"})
-
-        serializer.save(user = user)
+            serializer.save(user=target_user)
 
     def get_queryset(self):
         user = self.request.user
@@ -164,3 +177,24 @@ class StudentModelView(ModelViewSet):
 
         return Student.objects.none()
 
+    def perform_destroy(self, instance):
+        # 保留学生资料及选课历史，只停用账号并撤销旧 Token。
+        user = instance.user
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        Token.objects.filter(user=user).delete()
+
+    @action(detail=True, methods=["post"])
+    def restore(self, request, pk=None):
+        """管理员恢复学生账号；学生之后重新登录即可获得新 Token。"""
+        if not is_admin(request.user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("只有管理员可以恢复学生账号")
+
+        student = self.get_object()
+        student.user.is_active = True
+        student.user.save(update_fields=["is_active"])
+        return Response(
+            {"message": "学生账号已恢复", "student": self.get_serializer(student).data},
+            status=status.HTTP_200_OK,
+        )

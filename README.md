@@ -189,3 +189,22 @@ uv run python manage.py makemigrations --check --dry-run
 本项目当前使用 SQLite 作为开发数据库。
 
 如果用于生产环境，需要根据实际部署情况配置数据库、密钥、DEBUG、ALLOWED_HOSTS、静态文件和 HTTPS 等。
+
+
+## 后端管理接口补充
+
+- 管理员可通过 `POST /api/students/` 创建学生账号和学生资料，字段包括 `username`、`password`、`name`、`student_no`、`age`，可选 `email`。
+- 管理员可通过 `POST /api/teachers/` 创建教师账号和教师资料，字段包括 `username`、`password`、`name`、`department`，可选 `email`。
+- 学生列表支持 `?search=关键词` 搜索姓名、学号、用户名或 ID，也支持 `?id=学生资料ID` 精确筛选；列表项返回 `username` 和 `account_active`。
+- 管理员可通过 `GET /api/students/{id}/` 查看学生详情。
+- `DELETE /api/students/{id}/` 采用软删除：停用账号、删除旧 Token，但保留学生资料和选课记录。
+- 管理员可通过 `POST /api/students/{id}/restore/` 恢复学生账号；恢复后学生需重新登录获取新 Token。
+- 课程返回系统生成的唯一 `code`（例如 `CRS00001`）和 `enrollment_count`，并支持按课程编号搜索或精确筛选。
+
+升级已有数据库时执行：
+
+```bash
+docker compose exec backend python manage.py migrate
+```
+
+该迁移只为课程增加编号字段，并为已有课程补齐编号，不会删除现有业务数据。

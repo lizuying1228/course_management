@@ -65,12 +65,17 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import ValidationError
 from users.permissions import Teacherpermission, is_student, is_teacher, is_admin
 from teachers.pagination import TeacherPagination
+from django.db import transaction
 
 class TeacherModelView(ModelViewSet):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
     permission_classes = [Teacherpermission]
     pagination_class = TeacherPagination
+    search_fields = ["name", "department", "user__username", "=id", "=user__id"]
+    ordering_fields = ["id", "name", "department"]
+    ordering = ["id"]
+    filterset_fields = ["id", "user__is_active"]
 
     def get_queryset(self):
         user = self.request.user
@@ -81,55 +86,40 @@ class TeacherModelView(ModelViewSet):
         return Teacher.objects.none()
 
     def perform_create(self, serializer):
-        user = self.request.user
-
-        if not is_admin(user):
-            raise ValidationError(
-                "只有管理员可以创建教师资料"
-            )
+        if not is_admin(self.request.user):
+            raise ValidationError("只有管理员可以创建教师资料")
 
         data = self.request.data
-
         if not isinstance(data, dict):
-            raise ValidationError({
-                "error": "请求数据必须是 JSON 对象"
-            })
+            raise ValidationError({"error": "请求数据必须是 JSON 对象"})
 
-        user_id = data.get("user_id")
+        with transaction.atomic():
+            user_id = data.get("user_id")
+            if user_id is not None:
+                try:
+                    target_user = User.objects.get(pk=int(user_id))
+                except (TypeError, ValueError):
+                    raise ValidationError({"user_id": "user_id 必须是有效整数"})
+                except User.DoesNotExist:
+                    raise ValidationError({"user_id": "对应用户不存在"})
+                if hasattr(target_user, "teacher"):
+                    raise ValidationError({"user_id": "该用户已经拥有教师资料"})
+                if hasattr(target_user, "student"):
+                    raise ValidationError({"user_id": "该用户已经是学生，不能再创建教师资料"})
+            else:
+                username = data.get("username")
+                password = data.get("password")
+                if not username:
+                    raise ValidationError({"username": "创建教师账号时必须提供用户名"})
+                if not password or len(str(password)) < 8:
+                    raise ValidationError({"password": "密码至少需要 8 位"})
+                if User.objects.filter(username=username).exists():
+                    raise ValidationError({"username": "该用户名已被注册"})
+                target_user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                    email=data.get("email", ""),
+                )
 
-        if user_id is None:
-            raise ValidationError({
-                "user_id": "必须提供 user_id"
-            })
+            serializer.save(user=target_user)
 
-        try:
-            user_id = int(user_id)
-        except (TypeError, ValueError):
-            raise ValidationError({
-                "user_id": "user_id 必须是有效整数"
-            })
-
-        if user_id <= 0:
-            raise ValidationError({
-                "user_id": "user_id 必须大于 0"
-            })
-
-        target_user = get_object_or_404(
-            User,
-            pk=user_id
-        )
-
-        if Teacher.objects.filter(user=target_user).exists():
-            raise ValidationError({
-                "user_id": "该用户已经拥有教师资料"
-            })
-
-        if hasattr(target_user, "student"):
-            raise ValidationError({
-                "user_id": "该用户已经是学生，不能再创建教师资料"
-            })
-
-        serializer.save(user=target_user)
-
-
-        

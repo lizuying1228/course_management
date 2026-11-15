@@ -3,13 +3,14 @@ from courses.models import Course
 
 class CourseSerializer(serializers.ModelSerializer):
     title = serializers.CharField(required=True)
+    enrollment_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Course
-        fields = ["id", "teacher", "title", "description", 
-                  "capacity", "is_active", "created_at", "updated_at"]
+        fields = ["id", "code", "teacher", "title", "description",
+                  "capacity", "is_active", "enrollment_count", "created_at", "updated_at"]
 
-        read_only_fields = ["id", "created_at", "updated_at", "teacher"]
+        read_only_fields = ["id", "code", "created_at", "updated_at", "teacher", "enrollment_count"]
 
     def validate_capacity(self, value):
         if value < 1:

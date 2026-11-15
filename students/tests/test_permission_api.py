@@ -146,7 +146,51 @@ class StudentPermissionTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_admin_can_retrieve_student_detail(self):
+        self.login(self.admin_token)
+        response = self.client.get(reverse("student-detail", args=[self.student_a.id]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["student_no"], "S001")
 
+    def test_admin_can_create_student_and_user_together(self):
+        self.login(self.admin_token)
+        response = self.client.post(reverse("student-list"), {
+            "username": "new_student",
+            "password": "password123",
+            "name": "New Student",
+            "student_no": "S003",
+            "age": 19,
+        }, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(User.objects.filter(username="new_student").exists())
+        self.assertTrue(Student.objects.filter(student_no="S003").exists())
 
+    def test_admin_soft_delete_student_and_restore(self):
+        self.login(self.admin_token)
+        detail_url = reverse("student-detail", args=[self.student_a.id])
+        response = self.client.delete(detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.student_a_user.refresh_from_db()
+        self.assertFalse(self.student_a_user.is_active)
+        self.assertTrue(Student.objects.filter(pk=self.student_a.pk).exists())
+        self.assertFalse(Token.objects.filter(user=self.student_a_user).exists())
 
+        response = self.client.post(reverse("student-restore", args=[self.student_a.id]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.student_a_user.refresh_from_db()
+        self.assertTrue(self.student_a_user.is_active)
 
+    def test_soft_deleted_student_old_token_is_invalid(self):
+        old_token_key = self.student_a_token.key
+        self.login(self.admin_token)
+        self.client.delete(reverse("student-detail", args=[self.student_a.id]))
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {old_token_key}")
+        response = self.client.get(reverse("student-list"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_admin_can_search_student_by_id(self):
+        self.login(self.admin_token)
+        response = self.client.get(reverse("student-list"), {"id": self.student_b.id})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["id"], self.student_b.id)

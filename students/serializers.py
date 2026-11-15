@@ -5,10 +5,12 @@ from django.contrib.auth.models import User
 class StudentSerializer(serializers.ModelSerializer):
     name = serializers.CharField(required=True)
     student_no = serializers.CharField(required=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+    account_active = serializers.BooleanField(source="user.is_active", read_only=True)
     
     class Meta:
         model = Student
-        fields = ["id", "user", "name", "student_no", "age"]
+        fields = ["id", "user", "username", "account_active", "name", "student_no", "age"]
 
         read_only_fields = ["id", "user"]
 

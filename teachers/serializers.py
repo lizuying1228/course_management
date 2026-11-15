@@ -3,10 +3,12 @@ from teachers.models import Teacher
 from django.contrib.auth.models import User
 
 class TeacherSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source="user.username", read_only=True)
+    account_active = serializers.BooleanField(source="user.is_active", read_only=True)
 
     class Meta:
         model = Teacher
-        fields = ["id", "user", "name", "department"]
+        fields = ["id", "user", "username", "account_active", "name", "department"]
 
         read_only_fields = ["id", "user"]
 

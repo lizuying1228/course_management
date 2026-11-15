@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 load_dotenv(BASE_DIR / ".env")
 
@@ -93,13 +94,29 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+DB_ENGINE = os.environ.get("DB_ENGINE", "sqlite").lower()
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if DB_ENGINE == "mysql":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.environ["MYSQL_DATABASE"],
+            "USER": os.environ["MYSQL_USER"],
+            "PASSWORD": os.environ["MYSQL_PASSWORD"],
+            "HOST": os.environ.get("MYSQL_HOST", "db"),
+            "PORT": os.environ.get("MYSQL_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -166,7 +183,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/minute",
         "user": "120/minute",
-        "enroll": "10/minute",   # 自定义名字
+        "enroll": "20/minute",   # 自定义名字
         "login": "5/minute",
     },
     "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",

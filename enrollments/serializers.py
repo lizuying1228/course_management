@@ -32,7 +32,7 @@ class EnrollmentCreateSerializer(serializers.ModelSerializer):
         model = Enrollment
         fields = ["id", "course_id", "enrolled_at"]
 
-    def validata_course_id(self, value):
+    def validate_course_id(self, value):
         try:
             course = Course.objects.get(pk = value)
         except Course.DoesNotExist:
@@ -56,16 +56,8 @@ class EnrollmentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("缺少学生信息")
 
         course_id = attrs.get("course_id")
-        if not course_id:
-            raise serializers.ValidationError({"course": "必须指定课程"})
-        
-        try:
-            course = Course.objects.get(pk=course_id)
-        except Course.DoesNotExist:
-            raise serializers.ValidationError({"course": "课程不存在"})
 
-        if not course.is_active:
-            raise serializers.ValidationError({"course": "该课程未激活，无法选课"})
+        course = Course.objects.get(pk=course_id)
 
         exists = Enrollment.objects.filter(student = student, course = course)
 

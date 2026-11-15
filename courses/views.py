@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from teachers.models import Teacher
 from django.db.models.deletion import ProtectedError
+from django.db.models import Count
 
 # Create your views here.
 # class CourseListView(ListCreateAPIView):
@@ -61,7 +62,7 @@ class CourseModelView(ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [Coursepermission]
     filterset_class = CourseFilter
-    search_fields = ["title", "description", "teacher__name"]
+    search_fields = ["code", "title", "description", "teacher__name", "=id"]
     ordering_fields = ["title", "capacity", "created_at", "updated_at"]
     ordering = ["id"]
     pagination_class = CoursePagination
@@ -79,11 +80,14 @@ class CourseModelView(ModelViewSet):
                 raise ValidationError({"request": "请求必须是JSON格式"})
 
             teacher_id = data.get("teacher_id")
+            try:
+                teacher_id = int(teacher_id)
+            except (TypeError, ValueError):
+                raise ValidationError({"teacher_id": "teacher_id 必须是正整数"})
+            if teacher_id <= 0:
+                raise ValidationError({"teacher_id": "teacher_id 必须是正整数"})
 
-            if not teacher_id or int(teacher_id) <= 0:
-                raise ValidationError({"Error": "teacher_id必须存在，必须为正整数"})
-
-            teacher = get_object_or_404(Teacher, pk = int(teacher_id))
+            teacher = get_object_or_404(Teacher, pk=teacher_id)
 
             if not teacher:
                 raise ValidationError({"Error": "该教师不存在"})
@@ -93,7 +97,7 @@ class CourseModelView(ModelViewSet):
             
         raise ValidationError("没有创建课程的权限")
 
-    def perform_destory(self, instance):
+    def perform_destroy(self, instance):
         try:
             instance.delete()
 
@@ -102,7 +106,9 @@ class CourseModelView(ModelViewSet):
 
     @action(detail = False, methods=["GET"])
     def active(self, request):
-        courses = Course.objects.filter(is_active = True)
+        courses = Course.objects.filter(is_active=True).annotate(
+            enrollment_count=Count("enrollments")
+        )
         courses = self.filter_queryset(courses)
         page = self.paginate_queryset(courses)
 
@@ -118,10 +124,14 @@ class CourseModelView(ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if is_admin(user) or is_teacher(user):
-            return Course.objects.select_related("teacher", "teacher__user").order_by("id")
+            return Course.objects.select_related("teacher", "teacher__user").annotate(
+                enrollment_count=Count("enrollments")
+            ).order_by("id")
 
         if is_student(user):
-            return Course.objects.filter(is_active = True).select_related("teacher").order_by("id")
+            return Course.objects.filter(is_active=True).select_related("teacher").annotate(
+                enrollment_count=Count("enrollments")
+            ).order_by("id")
 
         return Course.objects.none()
 

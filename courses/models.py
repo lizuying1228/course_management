@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator
 class Course(models.Model):
     teacher = models.ForeignKey(Teacher, 
                                 on_delete = models.PROTECT, related_name = "courses")
+    code = models.CharField(max_length=30, unique=True, blank=True)
     title = models.CharField(max_length = 100)
     description = models.TextField(blank = True)
     capacity = models.PositiveIntegerField(default = 30, 
@@ -17,6 +18,13 @@ class Course(models.Model):
         verbose_name = "课程"
         verbose_name_plural = "课程"
 
+    def save(self, *args, **kwargs):
+        creating_without_code = self.pk is None and not self.code
+        super().save(*args, **kwargs)
+        if creating_without_code:
+            self.code = f"CRS{self.pk:05d}"
+            type(self).objects.filter(pk=self.pk).update(code=self.code)
+
     def __str__(self) -> str:
-        return f"{self.title}"
+        return f"{self.code} - {self.title}"
 

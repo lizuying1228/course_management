@@ -76,7 +76,7 @@ class EnrollmentSerializerTest(TestCase):
 
         serializer = EnrollmentCreateSerializer(data = data, context = context)
         self.assertFalse(serializer.is_valid())
-        self.assertIn("course", serializer.errors)
+        self.assertIn("course_id", serializer.errors)
 
     def test_noneexist_course(self):
         data = {
@@ -88,7 +88,7 @@ class EnrollmentSerializerTest(TestCase):
 
         serializer = EnrollmentCreateSerializer(data = data, context = context)
         self.assertFalse(serializer.is_valid())
-        self.assertIn("course", serializer.errors)
+        self.assertIn("course_id", serializer.errors)
 
     def test_student_only_read(self):
         another_user = User.objects.create_user(
